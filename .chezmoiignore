@@ -1,0 +1,46 @@
+# chezmoi internal
+.chezmoiignore
+.chezmoiremove
+
+# History files
+.zsh_history
+.bash_history
+.lesshst
+.motd_shown
+
+# Zsh compiled files
+.zcompdump*
+
+# Cache directories
+.cache/
+**/.cache/
+
+# SSH private keys (add .ssh/config manually if needed)
+.ssh/id_*
+.ssh/*.pub
+
+# Vim artifacts
+.viminfo
+.vim/.netrwhist
+.config/nvim/plugin/
+.config/nvim/lazy-lock.json
+
+# Tools that self-install
+.oh-my-zsh/cache/
+.oh-my-zsh/log/
+
+# OS-specific
+.sudo_as_admin_successful
+.wget-hsts
+
+# VS Code (recreated on each machine)
+.vscode-server/
+
+# .NET (recreated)
+.dotnet/
+
+# Copilot
+.copilot/
+
+# Large cache
+.z
