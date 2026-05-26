@@ -86,17 +86,39 @@ install_neovim() {
   curl -LO "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.appimage"
   chmod +x nvim-linux-x86_64.appimage
 
-  # Extract AppImage (avoids fuse dependency entirely) and set up symlink
+  # Extract AppImage to get bundled libraries
   ./nvim-linux-x86_64.appimage --appimage-extract >/dev/null 2>&1
   mkdir -p "$HOME/.local"
   rm -rf "$HOME/.local/nvim-appimage"
   mv squashfs-root "$HOME/.local/nvim-appimage"
   rm -f nvim-linux-x86_64.appimage
 
-  # AppRun handles library paths correctly
-  ln -sf "$HOME/.local/nvim-appimage/AppRun" "$HOME/.local/bin/nvim"
+  # Find bundled lib dirs and create wrapper that uses them
+  local lib_dirs=$(find "$HOME/.local/nvim-appimage" -type d -name 'lib' -o -name 'lib64' 2>/dev/null | tr '\n' ':')
+  cat > "$HOME/.local/bin/nvim" <<WRAPPER
+#!/bin/bash
+export LD_LIBRARY_PATH="${lib_dirs}\$LD_LIBRARY_PATH"
+exec "\$HOME/.local/nvim-appimage/usr/bin/nvim" "\$@"
+WRAPPER
+  chmod +x "$HOME/.local/bin/nvim"
 
-  "$HOME/.local/bin/nvim" --version
+  if "$HOME/.local/bin/nvim" --version >/dev/null 2>&1; then
+    "$HOME/.local/bin/nvim" --version | head -1
+  else
+    echo "AppImage incompatible with this system's glibc, using system neovim"
+    rm -f "$HOME/.local/bin/nvim"
+    rm -rf "$HOME/.local/nvim-appimage"
+    local SUDO=""
+    [[ "$(id -u)" -eq 0 ]] || SUDO="sudo -n"
+    if command -v apt-get &>/dev/null; then
+      $SUDO apt-get install -y -qq neovim 2>/dev/null || true
+    elif command -v yum &>/dev/null; then
+      $SUDO yum install -y neovim 2>/dev/null || true
+    elif command -v dnf &>/dev/null; then
+      $SUDO dnf install -y neovim 2>/dev/null || true
+    fi
+    echo "WARNING: system neovim may be too old for LazyVim. A minimal vim config will be used."
+  fi
 }
 
 install_base_packages() {
