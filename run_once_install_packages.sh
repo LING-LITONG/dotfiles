@@ -47,45 +47,6 @@ install_fzf() {
   fi
 }
 
-install_tools_apt() {
-  # root 不需要 sudo，普通用户无密码 sudo，否则跳过
-  local SUDO=""
-  if [[ "$(id -u)" -ne 0 ]]; then
-    if sudo -n true 2>/dev/null; then
-      SUDO="sudo -n"
-    else
-      echo "sudo requires a password — skipping apt packages, install manually:"
-      echo "  sudo apt-get install -y tmux ripgrep fd-find bat tree htop jq xclip"
-      return 0
-    fi
-  fi
-  $SUDO apt-get update -qq
-  $SUDO apt-get install -y -qq \
-    zsh \
-    git \
-    tmux \
-    fzf \
-    ripgrep \
-    fd-find \
-    bat \
-    tree \
-    htop \
-    unzip \
-    wget \
-    curl \
-    jq \
-    xclip \
-    language-pack-zh-hans \
-    2>/dev/null || true
-
-  # fd symlink (apt package is called fdfind)
-  mkdir -p "$HOME/.local/bin"
-  [[ -f "$HOME/.local/bin/fd" ]] || ln -s "$(which fdfind)" "$HOME/.local/bin/fd" 2>/dev/null || true
-
-  # bat symlink (apt package might be batcat)
-  [[ -f "$HOME/.local/bin/bat" ]] || ln -s "$(which batcat)" "$HOME/.local/bin/bat" 2>/dev/null || true
-}
-
 install_lazygit() {
   if command -v lazygit &>/dev/null; then
     echo "lazygit already installed"
@@ -112,17 +73,36 @@ install_neovim() {
   rm -rf nvim-linux-x86_64 nvim.tar.gz
 }
 
+install_base_packages() {
+  # minimal deps: zsh + git must be installed before oh-my-zsh
+  local SUDO=""
+  [[ "$(id -u)" -eq 0 ]] || SUDO="sudo -n"
+
+  if command -v apt-get &>/dev/null; then
+    $SUDO apt-get update -qq
+    $SUDO apt-get install -y -qq zsh git tmux fzf ripgrep fd-find bat tree htop unzip wget curl jq xclip 2>/dev/null || true
+    mkdir -p "$HOME/.local/bin"
+    [[ -f "$HOME/.local/bin/fd" ]] || ln -s "$(which fdfind 2>/dev/null)" "$HOME/.local/bin/fd" 2>/dev/null || true
+    [[ -f "$HOME/.local/bin/bat" ]] || ln -s "$(which batcat 2>/dev/null)" "$HOME/.local/bin/bat" 2>/dev/null || true
+  elif command -v dnf &>/dev/null; then
+    $SUDO dnf install -y zsh git tmux fzf ripgrep bat tree htop unzip wget curl jq 2>/dev/null || true
+  elif command -v yum &>/dev/null; then
+    $SUDO yum install -y zsh git tmux fzf ripgrep bat tree htop unzip wget curl jq 2>/dev/null || true
+  elif command -v apk &>/dev/null; then
+    $SUDO apk add zsh git tmux fzf ripgrep bat tree htop unzip wget curl jq 2>/dev/null || true
+  elif command -v pacman &>/dev/null; then
+    $SUDO pacman -S --noconfirm zsh git tmux fzf ripgrep bat tree htop unzip wget curl jq 2>/dev/null || true
+  else
+    echo "!!! zsh and git are required. Install them manually, then re-run chezmoi apply."
+    echo "!!! https://github.com/ohmyzsh/ohmyzsh/wiki/Installing-ZSH"
+    exit 1
+  fi
+}
+
 # Main
 echo "=== Setting up new machine ==="
 
-# apt/get packages first (zsh, git, etc. needed by subsequent steps)
-if command -v apt-get &>/dev/null; then
-  install_tools_apt
-elif command -v brew &>/dev/null; then
-  echo "Homebrew detected, install packages manually or via Brewfile"
-elif command -v pacman &>/dev/null; then
-  echo "Arch detected, install packages manually or via pacman"
-fi
+install_base_packages
 
 install_oh_my_zsh
 install_zsh_plugins
