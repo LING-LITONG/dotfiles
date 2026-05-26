@@ -62,31 +62,23 @@ install_lazygit() {
 
 install_neovim() {
   if command -v nvim &>/dev/null; then
-    echo "neovim already installed"
-    return
+    # Check version meets LazyVim requirement (>= 0.9.0)
+    local ver=$(nvim --version 2>/dev/null | head -1 | grep -oP '\d+\.\d+' | head -1)
+    if [[ -n "$ver" && "$(echo "$ver >= 0.9" | bc 2>/dev/null || echo 0)" -eq 1 ]]; then
+      echo "neovim $ver already installed (meets >= 0.9.0 requirement)"
+      return
+    fi
+    echo "neovim $ver is too old for LazyVim (needs >= 0.9.0), upgrading..."
   fi
 
-  # Try system package manager first (compatible with older glibc)
-  local SUDO=""
-  [[ "$(id -u)" -eq 0 ]] || SUDO="sudo -n"
+  # Use AppImage — self-contained, works on any glibc version
+  curl -LO "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.appimage"
+  chmod +x nvim-linux-x86_64.appimage
+  mkdir -p "$HOME/.local/bin"
+  mv nvim-linux-x86_64.appimage "$HOME/.local/bin/nvim"
 
-  if command -v apt-get &>/dev/null; then
-    $SUDO apt-get install -y -qq neovim 2>/dev/null && return 0 || true
-  elif command -v dnf &>/dev/null; then
-    $SUDO dnf install -y neovim 2>/dev/null && return 0 || true
-  elif command -v yum &>/dev/null; then
-    $SUDO yum install -y neovim 2>/dev/null && return 0 || true
-  elif command -v apk &>/dev/null; then
-    $SUDO apk add neovim 2>/dev/null && return 0 || true
-  fi
-
-  # Fallback: download prebuilt binary (needs glibc 2.34+)
-  echo "Package manager failed, trying prebuilt binary..."
-  curl -Lo nvim.tar.gz "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz"
-  tar xf nvim.tar.gz
-  mkdir -p "$HOME/.local"
-  cp -r nvim-linux-x86_64/* "$HOME/.local/"
-  rm -rf nvim-linux-x86_64 nvim.tar.gz
+  # Extract appimage to get full runtime if needed
+  "$HOME/.local/bin/nvim" --version
 }
 
 install_base_packages() {
@@ -96,7 +88,7 @@ install_base_packages() {
 
   if command -v apt-get &>/dev/null; then
     $SUDO apt-get update -qq
-    $SUDO apt-get install -y -qq zsh git tmux fzf ripgrep fd-find bat neovim tree htop unzip wget curl jq xclip 2>/dev/null || true
+    $SUDO apt-get install -y -qq zsh git tmux fzf ripgrep fd-find bat tree htop unzip wget curl jq xclip 2>/dev/null || true
     mkdir -p "$HOME/.local/bin"
     [[ -f "$HOME/.local/bin/fd" ]] || ln -s "$(which fdfind 2>/dev/null)" "$HOME/.local/bin/fd" 2>/dev/null || true
     [[ -f "$HOME/.local/bin/bat" ]] || ln -s "$(which batcat 2>/dev/null)" "$HOME/.local/bin/bat" 2>/dev/null || true
