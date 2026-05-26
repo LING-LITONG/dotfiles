@@ -48,14 +48,19 @@ install_fzf() {
 }
 
 install_tools_apt() {
-  # Check if we can sudo without a password
-  if ! sudo -n true 2>/dev/null; then
-    echo "sudo requires a password — skipping apt packages, install manually:"
-    echo "  sudo apt-get install -y tmux ripgrep fd-find bat tree htop jq xclip"
-    return 0
+  # root 不需要 sudo，普通用户无密码 sudo，否则跳过
+  local SUDO=""
+  if [[ "$(id -u)" -ne 0 ]]; then
+    if sudo -n true 2>/dev/null; then
+      SUDO="sudo -n"
+    else
+      echo "sudo requires a password — skipping apt packages, install manually:"
+      echo "  sudo apt-get install -y tmux ripgrep fd-find bat tree htop jq xclip"
+      return 0
+    fi
   fi
-  sudo -n apt-get update -qq
-  sudo -n apt-get install -y -qq \
+  $SUDO apt-get update -qq
+  $SUDO apt-get install -y -qq \
     tmux \
     fzf \
     ripgrep \
