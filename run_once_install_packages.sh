@@ -65,7 +65,23 @@ install_neovim() {
     echo "neovim already installed"
     return
   fi
-  # Use appimage or download prebuilt
+
+  # Try system package manager first (compatible with older glibc)
+  local SUDO=""
+  [[ "$(id -u)" -eq 0 ]] || SUDO="sudo -n"
+
+  if command -v apt-get &>/dev/null; then
+    $SUDO apt-get install -y -qq neovim 2>/dev/null && return 0 || true
+  elif command -v dnf &>/dev/null; then
+    $SUDO dnf install -y neovim 2>/dev/null && return 0 || true
+  elif command -v yum &>/dev/null; then
+    $SUDO yum install -y neovim 2>/dev/null && return 0 || true
+  elif command -v apk &>/dev/null; then
+    $SUDO apk add neovim 2>/dev/null && return 0 || true
+  fi
+
+  # Fallback: download prebuilt binary (needs glibc 2.34+)
+  echo "Package manager failed, trying prebuilt binary..."
   curl -Lo nvim.tar.gz "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz"
   tar xf nvim.tar.gz
   mkdir -p "$HOME/.local"
@@ -80,7 +96,7 @@ install_base_packages() {
 
   if command -v apt-get &>/dev/null; then
     $SUDO apt-get update -qq
-    $SUDO apt-get install -y -qq zsh git tmux fzf ripgrep fd-find bat tree htop unzip wget curl jq xclip 2>/dev/null || true
+    $SUDO apt-get install -y -qq zsh git tmux fzf ripgrep fd-find bat neovim tree htop unzip wget curl jq xclip 2>/dev/null || true
     mkdir -p "$HOME/.local/bin"
     [[ -f "$HOME/.local/bin/fd" ]] || ln -s "$(which fdfind 2>/dev/null)" "$HOME/.local/bin/fd" 2>/dev/null || true
     [[ -f "$HOME/.local/bin/bat" ]] || ln -s "$(which batcat 2>/dev/null)" "$HOME/.local/bin/bat" 2>/dev/null || true
