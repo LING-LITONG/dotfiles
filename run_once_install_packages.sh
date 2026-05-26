@@ -62,7 +62,6 @@ install_lazygit() {
 
 install_neovim() {
   if command -v nvim &>/dev/null; then
-    # Check version meets LazyVim requirement (>= 0.9.0)
     local ver=$(nvim --version 2>/dev/null | head -1 | grep -oP '\d+\.\d+' | head -1)
     if [[ -n "$ver" && "$(echo "$ver >= 0.9" | bc 2>/dev/null || echo 0)" -eq 1 ]]; then
       echo "neovim $ver already installed (meets >= 0.9.0 requirement)"
@@ -71,13 +70,32 @@ install_neovim() {
     echo "neovim $ver is too old for LazyVim (needs >= 0.9.0), upgrading..."
   fi
 
-  # Use AppImage — self-contained, works on any glibc version
+  local SUDO=""
+  [[ "$(id -u)" -eq 0 ]] || SUDO="sudo -n"
+
+  # Install fuse for AppImage on older systems
+  if command -v apt-get &>/dev/null; then
+    $SUDO apt-get install -y -qq libfuse2 2>/dev/null || true
+  elif command -v yum &>/dev/null; then
+    $SUDO yum install -y fuse-libs 2>/dev/null || true
+  elif command -v dnf &>/dev/null; then
+    $SUDO dnf install -y fuse-libs 2>/dev/null || true
+  fi
+
+  echo "Downloading neovim AppImage..."
   curl -LO "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.appimage"
   chmod +x nvim-linux-x86_64.appimage
-  mkdir -p "$HOME/.local/bin"
-  mv nvim-linux-x86_64.appimage "$HOME/.local/bin/nvim"
 
-  # Extract appimage to get full runtime if needed
+  # Extract AppImage (avoids fuse dependency entirely) and set up symlink
+  ./nvim-linux-x86_64.appimage --appimage-extract >/dev/null 2>&1
+  mkdir -p "$HOME/.local"
+  rm -rf "$HOME/.local/nvim-appimage"
+  mv squashfs-root "$HOME/.local/nvim-appimage"
+  rm -f nvim-linux-x86_64.appimage
+
+  # AppRun handles library paths correctly
+  ln -sf "$HOME/.local/nvim-appimage/AppRun" "$HOME/.local/bin/nvim"
+
   "$HOME/.local/bin/nvim" --version
 }
 
