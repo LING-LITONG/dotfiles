@@ -61,6 +61,8 @@ install_tools_apt() {
   fi
   $SUDO apt-get update -qq
   $SUDO apt-get install -y -qq \
+    zsh \
+    git \
     tmux \
     fzf \
     ripgrep \
@@ -113,11 +115,7 @@ install_neovim() {
 # Main
 echo "=== Setting up new machine ==="
 
-install_oh_my_zsh
-install_zsh_plugins
-install_fzf
-install_neovim
-
+# apt/get packages first (zsh, git, etc. needed by subsequent steps)
 if command -v apt-get &>/dev/null; then
   install_tools_apt
 elif command -v brew &>/dev/null; then
@@ -126,6 +124,10 @@ elif command -v pacman &>/dev/null; then
   echo "Arch detected, install packages manually or via pacman"
 fi
 
+install_oh_my_zsh
+install_zsh_plugins
+install_fzf
+install_neovim
 install_lazygit
 
 echo "=== Setup complete ==="
